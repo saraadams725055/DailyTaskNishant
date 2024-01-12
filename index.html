@@ -130,7 +130,7 @@
         loadGroup();
         loadUrl();
         getGas();
-
+        setInterval(getGas, 15000);
         //input urls
         let urlInput = document.getElementById("urlInput");
         urlInput.addEventListener("keyup", async function (event) {

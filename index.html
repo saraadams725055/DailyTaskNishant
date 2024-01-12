@@ -3,7 +3,8 @@
 <!-- command to deploy app:- firebase deploy -->
 
 <head>
-    <title>Daily Task Opener</title>
+    <title>Daily Task</title>
+    <link rel="icon" type="image/png" href="dt.png" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-r4NyP46KrjDleawBgD5tp8Y7UzmLA05oM1iAEQ17CSuDqnUK2+k9luXQOfXJCJ4I" crossorigin="anonymous">
@@ -34,6 +35,7 @@
         <div class="row mt-3">
             <div class="col-3 bg-dark rounded group text-center">
                 <h3 class="text-white">Hi, Nishant</h3>
+                <h6 class="text-white" id="gwei"></h6>
                 <input type="text" id="groupInput" class="form-control my-2" placeholder="Add Group">
                 <!-- <ul id="sidebar" class="list-group"> -->
                 <hr class="text-white">
@@ -127,6 +129,7 @@
 
         loadGroup();
         loadUrl();
+        getGas();
 
         //input urls
         let urlInput = document.getElementById("urlInput");
@@ -252,6 +255,16 @@
             for (let i = 0; i < listOfUrls.length; i++) {
                 window.open(replaceVariable(listOfUrls[i].url), '_blank');
             }
+        }
+
+        function getGas() {
+            fetch('https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=2M1WXTYFPYCYJ4HMB4BJ61EIUI8JTZ8C9H')
+                .then(response => response.json())
+                .then(data => {
+                    document.title = data.result.ProposeGasPrice + " Gwei"
+                    document.getElementById("gwei").innerText = "Average Gwei = " + data.result.ProposeGasPrice;
+                })
+                .catch(error => console.error('Error:', error));
         }
 
     </script>

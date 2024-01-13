@@ -193,13 +193,7 @@
                     checkbox.checked = true;
                     li.className = "d-flex justify-content-between align-items-center border bg-dark"
                 }
-                let deleteButton = document.createElement("button");
-                deleteButton.className = "btn btn-sm btn-danger"
-                deleteButton.innerHTML = '<i class="material-icons">delete</i>'
-                deleteButton.addEventListener('click', async () => {
-                    await remove(ref(db, `tasks/${selectedGroup}/${item.key}`))
-                    loadUrl();
-                })
+                
                 let moveUpButton = document.createElement("button");
                 moveUpButton.className = "btn btn-sm btn-info"
                 moveUpButton.innerHTML = '<i class="material-icons">arrow_upward</i>'
@@ -215,6 +209,7 @@
                         }
                     }
                 })
+                
                 let moveDownButton = document.createElement("button");
                 moveDownButton.className = "btn btn-sm btn-warning"
                 moveDownButton.innerHTML = '<i class="material-icons">arrow_downward</i>'
@@ -230,6 +225,15 @@
                         }
                     }
                 })
+
+                let deleteButton = document.createElement("button");
+                deleteButton.className = "btn btn-sm btn-danger"
+                deleteButton.innerHTML = '<i class="material-icons">delete</i>'
+                deleteButton.addEventListener('click', async () => {
+                    await remove(ref(db, `tasks/${selectedGroup}/${item.key}`))
+                    loadUrl();
+                })
+                
                 leftDiv.appendChild(checkbox);
                 leftDiv.appendChild(a);
                 rightDiv.appendChild(moveUpButton);

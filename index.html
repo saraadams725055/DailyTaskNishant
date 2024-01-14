@@ -18,8 +18,8 @@
             min-height: 100vh;
         }
 
-        .urlList:hover {
-            background-color: white;
+        li:hover {
+            border: 2px solid #F6F4F2;
             font-style: italic;
         }
 
@@ -221,14 +221,14 @@
                     loadUrl();
                 })
                 if (item.val().endDate == 'undefined') {
-                    li.className = "d-flex justify-content-between align-items-center border bg-success urlList"
+                    li.className = "d-flex justify-content-between align-items-center bg-success"
                 } else {
                     if (item.val().endDate < today) {
-                        li.className = "d-flex justify-content-between align-items-center border bg-danger urlList"
+                        li.className = "d-flex justify-content-between align-items-center bg-danger"
                     } else if (daysBetweenMillis(item.val().endDate, today) < 5) {
-                        li.className = "d-flex justify-content-between align-items-center border bg-warning urlList"
+                        li.className = "d-flex justify-content-between align-items-center bg-warning"
                     } else {
-                        li.className = "d-flex justify-content-between align-items-center border bg-success urlList"
+                        li.className = "d-flex justify-content-between align-items-center bg-success"
                     }
                 }
                 let moveUpButton = document.createElement("button");

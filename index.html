@@ -18,9 +18,21 @@
             min-height: 100vh;
         }
 
+        input:hover {
+            box-shadow: 0 0 5px 5px #ffffff;
+        }
+
+        li {
+            background-color: #343a40;
+            margin-bottom: 2px;
+        }
+
         li:hover {
-            border: 2px solid #F6F4F2;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            box-shadow: 0 0 5px 5px #ffffff;
             font-style: italic;
+            background-color: #ffffff;
         }
 
         a:hover {
@@ -42,16 +54,14 @@
     <div class="container-fluid">
         <div class="row mt-3">
             <div class="col-3 bg-dark rounded group text-center">
-                <h3 class="text-white">Hi, Nishant</h3>
+                <h3 class="text-white">Hello Manish</h3>
                 <h6 class="text-white" id="gwei"></h6>
                 <input type="text" id="groupInput" class="form-control my-2" placeholder="Add Group">
-                <!-- <ul id="sidebar" class="list-group"> -->
                 <hr class="text-white">
                 <ul id="sidebar" class="list-unstyled">
-
                 </ul>
             </div>
-            <div class="col-9 rounded">
+            <div class="col-9 rounded bg-secondary">
                 <input type="text" id="urlInput" class="form-control my-2"
                     placeholder="Paste Url and then press Enter key">
                 <hr>
@@ -93,7 +103,7 @@
             }
             if (event.keyCode === 13) {
                 event.preventDefault();
-                await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), groupInput.value.toUpperCase())
+                await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), false)
                 groupInput.value = "";
                 loadGroup();
             }
@@ -104,31 +114,40 @@
             sidebar.innerHTML = "";
             querySnapshot.forEach((item) => {
                 let li = document.createElement("li");
-                li.className = "d-flex justify-content-between align-items-center mb-2 text-white rounded"
+                li.className = "d-flex justify-content-between align-items-center mb-2 text-white bg-dark rounded"
                 let button = document.createElement("button");
                 button.className = "btn btn-danger"
                 button.innerHTML = '<i class="material-icons">delete</i>'
-                if (selectedGroup == item.val()) {
+                if (selectedGroup == item.key) {
                     li.className = "d-flex justify-content-between align-items-center bg-secondary mb-2 font-weight-bold text-white rounded";
                 }
                 button.addEventListener('click', async () => {
-                    let confirmation = prompt("Please write groupname to delete")
-                    if (confirmation.toUpperCase() == item.val()) {
+                    let confirmation = prompt("Warning!! All the Urls in this group will be deleted. Please write groupname to delete")
+                    if (confirmation.toUpperCase() == item.key) {
                         await remove(ref(db, `groups/${item.key}`))
-                        await remove(ref(db, `tasks/${item.val()}`))
+                        await remove(ref(db, `tasks/${item.key}`))
                         localStorage.removeItem("group")
                         loadUrl();
                     } else {
                         alert("Groupname did not match")
                     }
                 })
-                li.textContent = item.val();
+
+                li.textContent = item.key;
+                if (item.val() == true) {
+                    li.classList.add("text-decoration-line-through")
+                }
                 li.appendChild(button);
                 sidebar.appendChild(li);
 
-                li.addEventListener('click', () => {
-                    selectedGroup = item.val();
-                    localStorage.setItem("group", item.val());
+                li.addEventListener('click', async (event) => {
+                    if (event.ctrlKey) {
+                        await set(ref(db, `groups/${item.key}`), !item.val())
+                        loadGroup();
+                        return;
+                    }
+                    selectedGroup = item.key;
+                    localStorage.setItem("group", item.key);
                     loadGroup()
                     loadUrl();
                 })
@@ -165,14 +184,12 @@
 
             if (querySnapshot.exists()) {
                 let ulrList = document.getElementById("urlList");
-                let li = document.createElement("li");
+                let li = document.createElement("div");
                 li.className = "d-flex justify-content-center align-items-center";
                 let button = document.createElement("button");
-                button.className = "btn btn-sm btn-primary mb-1";
+                button.className = "btn btn-sm btn-success mb-1";
                 button.innerText = 'Open All Urls';
-                button.addEventListener('click', async () => {
-                    openAllUrls();
-                })
+                button.addEventListener('click', () => openUrls())
                 li.appendChild(button);
                 urlList.appendChild(li);
             }
@@ -180,6 +197,7 @@
                 listOfKeys.push(item.key);
                 listOfUrls.push(item.val());
                 let li = document.createElement("li");
+                li.className = "d-flex justify-content-between align-items-center"
                 let leftDiv = document.createElement("div");
                 leftDiv.className = "text-truncate"
                 let rightDiv = document.createElement("div");
@@ -194,16 +212,14 @@
                 let a = document.createElement("a");
                 a.textContent = item.val().url;
                 a.classList.add("text-decoration-none")
-                a.classList.add("text-white")
-                a.addEventListener('click', () => {
-                    window.open(replaceVariable(item.val().url), '_blank');
-                })
+                // a.classList.add("text-white")
+                a.addEventListener('click', () => openUrls(item.val().url))
                 if (item.val().completed) {
                     a.classList.add("text-decoration-line-through")
                     checkbox.checked = true;
                 }
                 let p = document.createElement("div");
-                p.className = "bg-info";
+                p.className = "bg-dark text-white";
                 p.innerText = millisToDDMMYY(item.val().endDate);
                 let date = document.createElement('input');
                 date.type = 'date';
@@ -220,16 +236,10 @@
                     await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "endDate": selectedDate })
                     loadUrl();
                 })
-                if (item.val().endDate == 'undefined') {
-                    li.className = "d-flex justify-content-between align-items-center bg-success"
-                } else {
-                    if (item.val().endDate < today) {
-                        li.className = "d-flex justify-content-between align-items-center bg-danger"
-                    } else if (daysBetweenMillis(item.val().endDate, today) < 5) {
-                        li.className = "d-flex justify-content-between align-items-center bg-warning"
-                    } else {
-                        li.className = "d-flex justify-content-between align-items-center bg-success"
-                    }
+                if (item.val().endDate < today) {
+                    a.classList.add("text-danger")
+                } else if (daysBetweenMillis(item.val().endDate, today) < 5) {
+                    a.classList.add("text-warning")
                 }
                 let moveUpButton = document.createElement("button");
                 moveUpButton.className = "btn btn-sm btn-dark p-1"
@@ -292,9 +302,19 @@
             return url;
         }
 
-        function openAllUrls() {
-            for (let i = 0; i < listOfUrls.length; i++) {
-                window.open(replaceVariable(listOfUrls[i].url), '_blank');
+        function openUrls() {
+            if (arguments.length === 0) {
+                for (let i = 0; i < listOfUrls.length; i++) {
+                    if (listOfUrls[i].url.startsWith("http")) {
+                        window.open(replaceVariable(listOfUrls[i].url), '_blank');
+                    }
+                }
+                return;
+            }
+            if (arguments.length === 1) {
+                if (arguments[0].startsWith("http")) {
+                    window.open(replaceVariable(arguments[0]), '_blank');
+                }
             }
         }
 
@@ -310,7 +330,7 @@
 
         function millisToDDMMYY(millis) {
             if (millis == undefined) {
-                return "N/A"
+                return ""
             }
             var date = new Date(millis);
             var day = ('0' + date.getDate()).slice(-2);

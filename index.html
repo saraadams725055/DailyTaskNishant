@@ -162,13 +162,23 @@
         //input urls
         let urlInput = document.getElementById("urlInput");
         urlInput.addEventListener("keyup", async function (event) {
-            if (urlInput.value == null || urlInput.value.trim() == "" || selectedGroup == "") {
-                return
+            if (urlInput.value == null || urlInput.value.trim() == "" || selectedGroup == null) {
+                alert("Url can not be Empty");
+                return;
+            }
+            if (selectedGroup == null || selectedGroup.trim() == "") {
+                alert("Please Select Group First");
+                return;
             }
             if (event.keyCode === 13) {
                 event.preventDefault();
+                let urlVal = urlInput.value;
+                if (urlVal.indexOf('{') >= 0) {
+                    console.log("hello");
+                    urlVal = saveVariable(urlVal);
+                }
                 await push(ref(db, `tasks/${selectedGroup}`), {
-                    "url": urlInput.value,
+                    "url": urlVal,
                     "completed": false
                 })
                 urlInput.value = "";
@@ -210,9 +220,8 @@
                     loadUrl();
                 })
                 let a = document.createElement("a");
-                a.textContent = item.val().url;
+                a.textContent = replaceVariable(item.val().url);
                 a.classList.add("text-decoration-none")
-                // a.classList.add("text-white")
                 a.addEventListener('click', () => openUrls(item.val().url))
                 if (item.val().completed) {
                     a.classList.add("text-decoration-line-through")
@@ -291,12 +300,33 @@
             });
         }
 
-        function replaceVariable(url) {//example "https://github.com/${key}/Gitcoin/edit/main/jan.py"
-            if (url.indexOf("${") >= 0) {
-                let key = url.substring(url.indexOf("${") + 2, url.indexOf("}"));
+        function saveVariable(url) {
+            let left = url.indexOf('{');
+            let mid = url.indexOf(':', left);
+            let right = url.indexOf('}', mid);
+
+            if (left < 0 || mid < 0 || right < 0) {
+                return url;
+            }
+
+            let key = url.substring(left + 1, mid);
+            let value = url.substring(mid + 1, right);
+            localStorage.setItem(key, value);
+
+            console.log(key)
+            console.log(value)
+
+            url = url.replace(":" + value, "");
+            console.log(url)
+            return url;
+        }
+
+        function replaceVariable(url) {//example "https://github.com/{key:value}/Gitcoin/edit/main/jan.py"
+            if (url.indexOf("{") >= 0) {
+                let key = url.substring(url.indexOf("{") + 1, url.indexOf("}"));
                 let value = localStorage.getItem(key);
 
-                let regex = new RegExp("\\$\\{" + key + "\\}", "g");
+                let regex = new RegExp("\\{" + key + "\\}", "g");
                 url = url.replace(regex, value);
             }
             return url;
@@ -305,7 +335,7 @@
         function openUrls() {
             if (arguments.length === 0) {
                 for (let i = 0; i < listOfUrls.length; i++) {
-                    if (listOfUrls[i].url.startsWith("http")) {
+                    if (listOfUrls[i].url.startsWith("http") && listOfUrls[i].completed == false) {
                         window.open(replaceVariable(listOfUrls[i].url), '_blank');
                     }
                 }

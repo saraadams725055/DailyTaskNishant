@@ -312,7 +312,7 @@
                 return;
             }
             if (arguments.length === 1) {
-                if (arguments[0].startsWith("http")) {
+                if (arguments[0].startsWith("http") && listOfUrls[i].completed == false) {
                     window.open(replaceVariable(arguments[0]), '_blank');
                 }
             }

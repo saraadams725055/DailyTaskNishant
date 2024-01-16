@@ -162,8 +162,7 @@
         //input urls
         let urlInput = document.getElementById("urlInput");
         urlInput.addEventListener("keyup", async function (event) {
-            if (urlInput.value == null || urlInput.value.trim() == "" || selectedGroup == null) {
-                alert("Url can not be Empty");
+            if (urlInput.value == null || urlInput.value.trim() == "") {
                 return;
             }
             if (selectedGroup == null || selectedGroup.trim() == "") {

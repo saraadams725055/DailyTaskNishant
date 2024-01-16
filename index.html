@@ -35,8 +35,9 @@
             background-color: #ffffff;
         }
 
-        a:hover {
+        li:hover a {
             cursor: pointer;
+            color: black;
         }
 
         .date {
@@ -45,6 +46,18 @@
 
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
+        }
+
+        .normal {
+            color: #00ffff;
+        }
+
+        .warning {
+            color: yellow;
+        }
+
+        .danger {
+            color: red;
         }
     </style>
 </head>
@@ -178,7 +191,8 @@
                 }
                 await push(ref(db, `tasks/${selectedGroup}`), {
                     "url": urlVal,
-                    "completed": false
+                    "completed": false,
+                    "endDate": ''
                 })
                 urlInput.value = "";
                 loadUrl();
@@ -234,20 +248,23 @@
                 date.classList.add("date")
                 date.classList.add("bg-dark")
                 date.classList.add("text-white")
-                date.addEventListener('change', async () => {
-                    let selectedDate = new Date(date.value).getTime();
+                date.addEventListener('input', async (event) => {
+                    let selectedDate = '';
                     let today = new Date().getTime();
-                    // if (selectedDate < today) {
-                    //     alert("You can't select past End Date");
-                    //     return;
-                    // }
+                    if (event.target.value != '') {
+                        selectedDate = new Date(date.value).getTime();
+                    }
                     await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "endDate": selectedDate })
                     loadUrl();
                 })
-                if (item.val().endDate < today) {
-                    a.classList.add("text-danger")
+                if (item.val().endDate == '' || item.val().endDate == undefined) {
+                    a.classList.add("normal");
+                } else if (item.val().endDate < today) {
+                    a.classList.add("danger");
                 } else if (daysBetweenMillis(item.val().endDate, today) < 5) {
-                    a.classList.add("text-warning")
+                    a.classList.add("warning")
+                } else {
+                    a.classList.add("normal")
                 }
                 let moveUpButton = document.createElement("button");
                 moveUpButton.className = "btn btn-sm btn-dark p-1"
@@ -341,7 +358,7 @@
                 return;
             }
             if (arguments.length === 1) {
-                if (arguments[0].startsWith("http") && listOfUrls[i].completed == false) {
+                if (arguments[0].startsWith("http")) {
                     window.open(replaceVariable(arguments[0]), '_blank');
                 }
             }
@@ -358,7 +375,7 @@
         }
 
         function millisToDDMMYY(millis) {
-            if (millis == undefined) {
+            if (millis == undefined || millis == '') {
                 return ""
             }
             var date = new Date(millis);

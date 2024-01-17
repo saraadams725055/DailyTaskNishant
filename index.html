@@ -186,14 +186,15 @@
                 event.preventDefault();
                 let urlVal = urlInput.value;
                 if (urlVal.indexOf('{') >= 0) {
-                    console.log("hello");
                     urlVal = saveVariable(urlVal);
                 }
-                await push(ref(db, `tasks/${selectedGroup}`), {
-                    "url": urlVal,
-                    "completed": false,
-                    "endDate": ''
-                })
+                if (checkIfExists(urlVal) == false) {
+                    await push(ref(db, `tasks/${selectedGroup}`), {
+                        "url": urlVal,
+                        "completed": false,
+                        "endDate": ''
+                    })
+                }
                 urlInput.value = "";
                 loadUrl();
             }
@@ -328,12 +329,7 @@
             let key = url.substring(left + 1, mid);
             let value = url.substring(mid + 1, right);
             localStorage.setItem(key, value);
-
-            console.log(key)
-            console.log(value)
-
             url = url.replace(":" + value, "");
-            console.log(url)
             return url;
         }
 
@@ -391,7 +387,14 @@
             return Math.round(difference_ms / ONE_DAY);
         }
 
-
+        function checkIfExists(url) {
+            for (let i = 0; i < listOfUrls.length; i++) {
+                if (listOfUrls[i].url == url) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"

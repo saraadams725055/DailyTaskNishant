@@ -35,9 +35,13 @@
             background-color: #ffffff;
         }
 
-        li:hover a {
+        li:hover .url {
             cursor: pointer;
-            color: black;
+            color: rgb(0, 0, 255);
+        }
+
+        li:hover .urlDesc {
+            display: block;
         }
 
         .date {
@@ -48,8 +52,28 @@
             filter: invert(1);
         }
 
+        .leftDiv {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        li:hover .leftDiv {
+            height: auto;
+            white-space: normal;
+        }
+
+        .urlDesc {
+            display: none;
+            color: rgb(0, 0, 0);
+        }
+
         .normal {
             color: #00ffff;
+        }
+
+        .white {
+            color: white;
         }
 
         .warning {
@@ -79,7 +103,6 @@
                     placeholder="Paste Url and then press Enter key">
                 <hr>
                 <ul id="urlList" class="list-unstyled">
-
                 </ul>
             </div>
         </div>
@@ -116,7 +139,7 @@
             }
             if (event.keyCode === 13) {
                 event.preventDefault();
-                await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), false)
+                await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), 3153600000000) //1 jan 2100
                 groupInput.value = "";
                 loadGroup();
             }
@@ -127,12 +150,12 @@
             sidebar.innerHTML = "";
             querySnapshot.forEach((item) => {
                 let li = document.createElement("li");
-                li.className = "d-flex justify-content-between align-items-center mb-2 text-white bg-dark rounded"
+                li.className = "d-flex justify-content-between align-items-center mb-2 bg-dark white rounded"
                 let button = document.createElement("button");
                 button.className = "btn btn-danger"
                 button.innerHTML = '<i class="material-icons">delete</i>'
                 if (selectedGroup == item.key) {
-                    li.className = "d-flex justify-content-between align-items-center bg-secondary mb-2 font-weight-bold text-white rounded";
+                    li.className = "d-flex justify-content-between align-items-center bg-secondary mb-2 font-weight-bold rounded";
                 }
                 button.addEventListener('click', async () => {
                     let confirmation = prompt("Warning!! All the Urls in this group will be deleted. Please write groupname to delete")
@@ -147,7 +170,17 @@
                 })
 
                 li.textContent = item.key;
-                if (item.val() == true) {
+                let days = daysLeft(item.val())
+                if (days == -1) {
+                    li.classList.add("danger");
+                }
+                if (days == 0) {
+                    li.classList.add("white");
+                }
+                if (days == 1) {
+                    li.classList.add("warning")
+                }
+                if (item.val() < 0) {
                     li.classList.add("text-decoration-line-through")
                 }
                 li.appendChild(button);
@@ -155,7 +188,7 @@
 
                 li.addEventListener('click', async (event) => {
                     if (event.ctrlKey) {
-                        await set(ref(db, `groups/${item.key}`), !item.val())
+                        await set(ref(db, `groups/${item.key}`), -item.val())
                         loadGroup();
                         return;
                     }
@@ -184,7 +217,13 @@
             }
             if (event.keyCode === 13) {
                 event.preventDefault();
-                let urlVal = urlInput.value;
+                let urlVal = urlInput.value.trim();
+                let description = "";
+                let spaceIndex = urlVal.indexOf(" ");
+                if (spaceIndex > 0) {
+                    description = urlVal.substring(spaceIndex + 1);
+                    urlVal = urlVal.substring(0, spaceIndex);
+                }
                 if (urlVal.indexOf('{') >= 0) {
                     urlVal = saveVariable(urlVal);
                 }
@@ -192,15 +231,18 @@
                     await push(ref(db, `tasks/${selectedGroup}`), {
                         "url": urlVal,
                         "completed": false,
-                        "endDate": ''
+                        "description": description,
+                        "endDate": ""
                     })
+                } else {
+                    alert("Url already exists");
                 }
                 urlInput.value = "";
                 loadUrl();
             }
         });
         async function loadUrl() {
-            let today = new Date().getTime();
+            let groupEndDate = 3153600000000 // 1 jan 2100
             listOfKeys = []
             listOfUrls = []
             const querySnapshot = await get(ref(db, `tasks/${selectedGroup}`));
@@ -209,7 +251,7 @@
             if (querySnapshot.exists()) {
                 let ulrList = document.getElementById("urlList");
                 let li = document.createElement("div");
-                li.className = "d-flex justify-content-center align-items-center";
+                li.className = "d-flex justify-content-center";
                 let button = document.createElement("button");
                 button.className = "btn btn-sm btn-success mb-1";
                 button.innerText = 'Open All Urls';
@@ -220,12 +262,19 @@
             querySnapshot.forEach((item) => {
                 listOfKeys.push(item.key);
                 listOfUrls.push(item.val());
+
+                if (item.val().endDate != false && item.val().endDate < groupEndDate) {
+                    groupEndDate = item.val().endDate;
+                }
+
                 let li = document.createElement("li");
                 li.className = "d-flex justify-content-between align-items-center"
                 let leftDiv = document.createElement("div");
-                leftDiv.className = "text-truncate"
-                let rightDiv = document.createElement("div");
-                rightDiv.className = "d-flex"
+                leftDiv.className = "d-flex leftDiv"
+
+                let checkboxContainer = document.createElement('div');
+                let urlAndDescContainer = document.createElement('div');
+                urlAndDescContainer.className = "d-flex flex-column"
                 let checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.className = 'form-check-input mx-2'
@@ -233,39 +282,48 @@
                     await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "completed": !item.val().completed })
                     loadUrl();
                 })
-                let a = document.createElement("a");
-                a.textContent = replaceVariable(item.val().url);
-                a.classList.add("text-decoration-none")
-                a.addEventListener('click', () => openUrls(item.val().url))
+                let url = document.createElement("div");
+                url.textContent = replaceVariable(item.val().url);
+                url.className = "text-decoration-none url normal"
+                url.addEventListener('click', () => openUrls(item.val().url))
                 if (item.val().completed) {
-                    a.classList.add("text-decoration-line-through")
+                    url.classList.add("text-decoration-line-through")
                     checkbox.checked = true;
                 }
-                let p = document.createElement("div");
-                p.className = "bg-dark text-white";
-                p.innerText = millisToDDMMYY(item.val().endDate);
-                let date = document.createElement('input');
-                date.type = 'date';
-                date.classList.add("date")
-                date.classList.add("bg-dark")
-                date.classList.add("text-white")
-                date.addEventListener('input', async (event) => {
+                let urlDesc = document.createElement('div');
+                urlDesc.className = "urlDesc"
+                urlDesc.innerText = item.val().description ? item.val().description : '';
+
+
+                let rightDiv = document.createElement("div");
+                rightDiv.className = "d-flex"
+
+                let dateValue = document.createElement("div");
+                dateValue.className = "bg-dark text-white";
+                dateValue.innerText = millisToDDMMYY(item.val().endDate);
+                let dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.classList.add("date")
+                dateInput.classList.add("bg-dark")
+                dateInput.classList.add("text-white")
+                dateInput.addEventListener('input', async (event) => {
                     let selectedDate = '';
-                    let today = new Date().getTime();
                     if (event.target.value != '') {
-                        selectedDate = new Date(date.value).getTime();
+                        selectedDate = new Date(dateInput.value).getTime();
                     }
                     await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "endDate": selectedDate })
                     loadUrl();
                 })
-                if (item.val().endDate == '' || item.val().endDate == undefined) {
-                    a.classList.add("normal");
-                } else if (item.val().endDate < today) {
-                    a.classList.add("danger");
-                } else if (daysBetweenMillis(item.val().endDate, today) < 5) {
-                    a.classList.add("warning")
-                } else {
-                    a.classList.add("normal")
+
+                let days = daysLeft(item.val().endDate)
+                if (days == -1) {
+                    url.classList.add("danger");
+                }
+                if (days == 0) {
+                    url.classList.add("normal");
+                }
+                if (days == 1) {
+                    url.classList.add("warning")
                 }
                 let moveUpButton = document.createElement("button");
                 moveUpButton.className = "btn btn-sm btn-dark p-1"
@@ -301,13 +359,21 @@
                 deleteButton.className = "btn btn-sm btn-dark text-danger p-1"
                 deleteButton.innerHTML = '<i class="material-icons">delete</i>'
                 deleteButton.addEventListener('click', async () => {
-                    await remove(ref(db, `tasks/${selectedGroup}/${item.key}`))
-                    loadUrl();
+                    let result = confirm(`Are you sure you want to delete?\n${item.val().url}`);
+                    if (result) {
+                        await remove(ref(db, `tasks/${selectedGroup}/${item.key}`))
+                        loadUrl();
+                    }
                 })
-                leftDiv.appendChild(checkbox);
-                leftDiv.appendChild(a);
-                rightDiv.appendChild(p);
-                rightDiv.appendChild(date);
+                checkboxContainer.appendChild(checkbox);
+                urlAndDescContainer.appendChild(url);
+                urlAndDescContainer.appendChild(urlDesc);
+
+                leftDiv.appendChild(checkboxContainer);
+                leftDiv.appendChild(urlAndDescContainer);
+
+                rightDiv.appendChild(dateValue);
+                rightDiv.appendChild(dateInput);
                 rightDiv.appendChild(moveUpButton);
                 rightDiv.appendChild(moveDownButton);
                 rightDiv.appendChild(deleteButton);
@@ -315,6 +381,8 @@
                 li.appendChild(rightDiv);
                 urlList.appendChild(li);
             });
+            await set(ref(db, `groups/${selectedGroup}`), groupEndDate);
+            loadGroup();
         }
 
         function saveVariable(url) {
@@ -381,10 +449,22 @@
             return day + '/' + month + '/' + year;
         }
 
-        function daysBetweenMillis(date1_ms, date2_ms) {
-            const ONE_DAY = 1000 * 60 * 60 * 24;
-            var difference_ms = Math.abs(date1_ms - date2_ms);
-            return Math.round(difference_ms / ONE_DAY);
+        function daysLeft(endDate) {
+            let today = new Date().getTime();
+
+            if (endDate == '' || endDate == undefined) {
+                return 0;
+            }
+            if (endDate < 0) {
+                endDate = -endDate;
+            }
+            if (endDate < today) {
+                return -1;
+            }
+            if (endDate - today < 604800000) {
+                return 1;
+            }
+            return 0;
         }
 
         function checkIfExists(url) {

@@ -4,7 +4,7 @@
 
 <head>
     <title>Daily Task</title>
-    <link rel="icon" type="image/png" href="./dt.png?" />
+    <link rel="icon" type="image/png" href="dt.png" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-r4NyP46KrjDleawBgD5tp8Y7UzmLA05oM1iAEQ17CSuDqnUK2+k9luXQOfXJCJ4I" crossorigin="anonymous">
@@ -140,36 +140,44 @@
             if (event.keyCode === 13) {
                 event.preventDefault();
                 await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), 3153600000000) //1 jan 2100
+                selectedGroup = groupInput.value.toUpperCase();
+                localStorage.setItem("group", groupInput.value.toUpperCase());
                 groupInput.value = "";
-                loadGroup();
+                loadUrl();
             }
         });
         async function loadGroup() {
             const querySnapshot = await get(ref(db, "groups"));
             let sidebar = document.getElementById("sidebar");
             sidebar.innerHTML = "";
+            let groupDeleted = true;
             querySnapshot.forEach((item) => {
                 let li = document.createElement("li");
-                li.className = "d-flex justify-content-between align-items-center mb-2 bg-dark white rounded"
+                li.className = "d-flex align-items-center mb-2 bg-dark white rounded"
+
+                let groupName = document.createElement("div");
+                groupName.className = "flex-grow-1 text-left"
+                groupName.textContent = item.key;
+
                 let button = document.createElement("button");
                 button.className = "btn btn-danger"
                 button.innerHTML = '<i class="material-icons">delete</i>'
                 if (selectedGroup == item.key) {
+                    groupDeleted = false;
                     li.className = "d-flex justify-content-between align-items-center bg-secondary mb-2 font-weight-bold rounded";
                 }
                 button.addEventListener('click', async () => {
-                    let confirmation = prompt("Warning!! All the Urls in this group will be deleted. Please write groupname to delete")
+                    let confirmation = prompt("Warning!! All the Urls in this group will be deleted.\n Please write groupname to delete")
                     if (confirmation.toUpperCase() == item.key) {
                         await remove(ref(db, `groups/${item.key}`))
                         await remove(ref(db, `tasks/${item.key}`))
+                        selectedGroup = null;
                         localStorage.removeItem("group")
                         loadUrl();
                     } else {
                         alert("Groupname did not match")
                     }
                 })
-
-                li.textContent = item.key;
                 let days = daysLeft(item.val())
                 if (days == -1) {
                     li.classList.add("danger");
@@ -183,10 +191,11 @@
                 if (item.val() < 0) {
                     li.classList.add("text-decoration-line-through")
                 }
+                li.appendChild(groupName);
                 li.appendChild(button);
                 sidebar.appendChild(li);
 
-                li.addEventListener('click', async (event) => {
+                groupName.addEventListener('click', async (event) => {
                     if (event.ctrlKey) {
                         await set(ref(db, `groups/${item.key}`), -item.val())
                         loadGroup();
@@ -198,6 +207,10 @@
                     loadUrl();
                 })
             });
+            if (groupDeleted == true) {
+                selectedGroup = null;
+                localStorage.removeItem("group")
+            }
         }
 
         loadGroup();
@@ -381,7 +394,9 @@
                 li.appendChild(rightDiv);
                 urlList.appendChild(li);
             });
-            await set(ref(db, `groups/${selectedGroup}`), groupEndDate);
+            if (selectedGroup != null) {
+                await set(ref(db, `groups/${selectedGroup}`), groupEndDate);
+            }
             loadGroup();
         }
 

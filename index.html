@@ -14,8 +14,16 @@
             background-color: #F6F4F2;
         }
 
+        .modal-title {
+            word-break: break-all;
+        }
+
         .group {
             min-height: 100vh;
+        }
+
+        .dropdown-item:hover {
+            font-weight: bold;
         }
 
         input:hover {
@@ -88,10 +96,40 @@
 
 <body>
 
+    <div class="modal fade" id="exampleModalLong" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modal-title">Modal title</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                </div>
+                <div class="modal-body">
+                    <div class="checkBoxContainer">
+                        <!-- dynamically adding checkboxes -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <!-- dynamically adding add users button -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-fluid">
         <div class="row mt-3">
             <div class="col-3 bg-dark rounded group text-center">
-                <h3 class="text-white">Hello Nishant</h3>
+                <div class="dropdown">
+                    <button type="button" id="email" class="btn btn-primary dropdown-toggle my-2"
+                        data-bs-toggle="dropdown">
+                        Select Your Email
+                    </button>
+                    <ul class="dropdown-menu">
+                        <!-- dynamically adding email -->
+                    </ul>
+                </div>
                 <h6 class="text-white" id="gwei"></h6>
                 <input type="text" id="groupInput" class="form-control my-2" placeholder="Add Group">
                 <hr class="text-white">
@@ -102,11 +140,13 @@
                 <input type="text" id="urlInput" class="form-control my-2"
                     placeholder="Paste Url and then press Enter key">
                 <hr>
-                <ul id="urlList" class="list-unstyled">
-                </ul>
+                <ul id="urlList" class="list-unstyled"></ul>
             </div>
         </div>
     </div>
+
+
+
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -126,10 +166,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         // Reference to the tasks collection
+
+        let selectedEmail = localStorage.getItem("email") || "Select Your Email";
         let selectedGroup = localStorage.getItem("group") || null;
+        let updatedUsersList = [];
+        let listOfEmails = [];
         let listOfKeys = [];
         let listOfUrls = [];
+        let listOfUsersUrls = [];
 
+
+        //email operations (add/edit/discard)
+        let email = document.getElementById("email");
+        email.innerHTML = selectedEmail;
 
         //sidebar
         let groupInput = document.getElementById("groupInput");
@@ -213,6 +262,7 @@
             }
         }
 
+        loadEmail();
         loadGroup();
         loadUrl();
         getGas();
@@ -232,6 +282,7 @@
                 event.preventDefault();
                 let urlVal = urlInput.value.trim();
                 let description = "";
+
                 let spaceIndex = urlVal.indexOf(" ");
                 if (spaceIndex > 0) {
                     description = urlVal.substring(spaceIndex + 1);
@@ -240,12 +291,16 @@
                 if (urlVal.indexOf('{') >= 0) {
                     urlVal = saveVariable(urlVal);
                 }
+                if (selectedGroup == "EMAIL" && isValidEmail(urlVal) == false) {
+                    alert("Email is not valid")
+                    return;
+                }
                 if (checkIfExists(urlVal) == false) {
                     await push(ref(db, `tasks/${selectedGroup}`), {
-                        "url": urlVal,
                         "completed": false,
                         "description": description,
-                        "endDate": ""
+                        "endDate": "",
+                        "url": urlVal
                     })
                 } else {
                     alert("Url already exists");
@@ -254,10 +309,35 @@
                 loadUrl();
             }
         });
+
+
+        async function loadEmail() {
+            let emailDropDown = document.querySelector(".dropdown-menu");
+            emailDropDown.innerHTML = "";
+            const querySnapshot = await get(ref(db, "tasks/EMAIL"));
+            querySnapshot.forEach((item) => {
+                listOfEmails.push(item.val().url)
+                let li = document.createElement("li");
+                li.className = "dropdown-item";
+                li.innerText = item.val().url;
+                li.addEventListener("click", () => {
+                    let result = confirm(`Are you sure you want to change email`);
+                    if (result) {
+                        selectedEmail = item.val().url;
+                        localStorage.setItem("email", selectedEmail);
+                        email.innerHTML = selectedEmail;
+                        loadUrl();
+                    }
+                })
+                emailDropDown.appendChild(li);
+            })
+        }
+
         async function loadUrl() {
             let groupEndDate = 3153600000000 // 1 jan 2100
             listOfKeys = []
             listOfUrls = []
+            listOfUsersUrls = []
             const querySnapshot = await get(ref(db, `tasks/${selectedGroup}`));
             urlList.innerHTML = "";
 
@@ -295,13 +375,18 @@
                     await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "completed": !item.val().completed })
                     loadUrl();
                 })
+
                 let url = document.createElement("div");
                 url.textContent = replaceVariable(item.val().url);
                 url.className = "text-decoration-none url normal"
                 url.addEventListener('click', () => openUrls(item.val().url))
                 if (item.val().completed) {
-                    url.classList.add("text-decoration-line-through")
                     checkbox.checked = true;
+                    url.classList.add("text-decoration-line-through")
+                } else if (item.val().users?.indexOf(selectedEmail) == -1) {
+                    url.classList.add("text-decoration-line-through")
+                } else {
+                    listOfUsersUrls.push(item.val())
                 }
                 let urlDesc = document.createElement('div');
                 urlDesc.className = "urlDesc"
@@ -338,6 +423,76 @@
                 if (days == 1) {
                     url.classList.add("warning")
                 }
+                let addUser = document.createElement("button");
+                addUser.setAttribute('data-bs-toggle', 'modal');
+                addUser.setAttribute('data-bs-target', '#exampleModalLong');
+                addUser.className = "btn btn-sm btn-dark p-1"
+                addUser.innerHTML = '<i class="material-icons">group_add</i>'
+                let modalFooter = document.querySelector(".modal-footer");
+                addUser.addEventListener('click', () => {
+                    if (listOfEmails.length == 0) {
+                        alert("1. Create Group of name 'EMAIL'.\n2. Add your emails to that group. \n3. You will be able to select emails only then.");
+                        return;
+                    }
+                    modalFooter.innerHTML = ""
+                    updatedUsersList = []
+                    document.querySelector(".modal-title").innerText = item.val().url;
+                    let checkboxContainer = document.querySelector(".checkBoxContainer")
+                    checkboxContainer.innerHTML = ""
+                    listOfEmails.forEach((email) => {
+                        let div = document.createElement('div');
+                        div.className = "form-check";
+                        // Create a new checkbox
+                        let checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = email;
+                        checkbox.id = email;
+                        checkbox.className = 'form-check-input';
+                        checkbox.addEventListener('change', () => {
+                            let index = updatedUsersList.indexOf(email)
+                            if (checkbox.checked) {
+                                if (index == -1) {
+                                    updatedUsersList.push(email);
+                                }
+                            } else {
+                                if (index > -1) {
+                                    updatedUsersList.splice(index, 1);
+                                }
+                            }
+                        })
+                        if (item.val().users == undefined || item.val().users == null) {
+                            checkbox.checked = true;
+                        } else {
+                            if (item.val().users.indexOf(email) > -1) {
+                                checkbox.checked = true;
+                            }
+                        }
+                        if (checkbox.checked) {
+                            updatedUsersList.push(email);
+                        }
+
+                        // Create a new label
+                        let label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.className = 'form-check-label';
+                        label.appendChild(document.createTextNode(email));
+
+                        // Append the checkbox and label to the div
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        checkboxContainer.appendChild(div);
+                    })
+
+                    let updateUsers = document.createElement("button");
+                    updateUsers.className = "btn btn-success"
+                    updateUsers.innerText = 'Update Users'
+                    updateUsers.setAttribute('data-bs-dismiss', 'modal');
+                    modalFooter.appendChild(updateUsers)
+                    updateUsers.addEventListener('click', async () => {
+                        await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "users": updatedUsersList })
+                        loadUrl();
+                    })
+                })
                 let moveUpButton = document.createElement("button");
                 moveUpButton.className = "btn btn-sm btn-dark p-1"
                 moveUpButton.innerHTML = '<i class="material-icons">arrow_upward</i>'
@@ -387,6 +542,7 @@
 
                 rightDiv.appendChild(dateValue);
                 rightDiv.appendChild(dateInput);
+                rightDiv.appendChild(addUser);
                 rightDiv.appendChild(moveUpButton);
                 rightDiv.appendChild(moveDownButton);
                 rightDiv.appendChild(deleteButton);
@@ -429,9 +585,9 @@
 
         function openUrls() {
             if (arguments.length === 0) {
-                for (let i = 0; i < listOfUrls.length; i++) {
-                    if (listOfUrls[i].url.startsWith("http") && listOfUrls[i].completed == false) {
-                        window.open(replaceVariable(listOfUrls[i].url), '_blank');
+                for (let i = 0; i < listOfUsersUrls.length; i++) {
+                    if (listOfUsersUrls[i].url.startsWith("http")) {
+                        window.open(replaceVariable(listOfUsersUrls[i].url), '_blank');
                     }
                 }
                 return;
@@ -489,6 +645,11 @@
                 }
             }
             return false;
+        }
+
+        function isValidEmail(email) {
+            let regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return regex.test(email);
         }
 
     </script>
